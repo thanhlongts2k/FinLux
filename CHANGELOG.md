@@ -1,5 +1,55 @@
 # Changelog
 
+## [1.20.3] - 2026-09-03
+### Added
+- **Hành Động "Tất Toán & Đóng Deal" (Close Deal)**:
+  * Bổ sung `CloseDealUseCase` và method `closeDeal` trong `DealRepository`, `FirebaseDealRepository`, và `DemoFinluxRepository`.
+  * Thêm nút "Tất toán & Đóng Deal" (kèm dialog xác nhận) trực tiếp trên `DealDetailBottomSheet` giúp đóng sổ thương vụ thành công sang tab "Đã Hoàn Tất".
+- **Kiểm Thử Mở Rộng Cho State Machine & ROI Chuẩn (`DealUseCasesTest`)**:
+  * Kiểm thử chặn 100% các hành vi xuất thêm vốn, thu hồi, chốt lỗ khi Deal đang ở trạng thái `COMPLETED`.
+  * Kiểm thử tính đúng ROI khi đang chờ thu hồi vốn (không bị âm vốn lưu động) và khấu trừ chuẩn `writtenOffCapital`.
+
+### Changed
+- **Chuẩn Hóa Công Thức Tỷ Suất ROI (Tránh Âm Vô Lý)**:
+  * Công thức ROI Deal và ROI tổng hợp trên Hero Card tính chuẩn theo Lợi nhuận ròng thực nhận: $\text{ROI (\%)} = (\text{netProfitLoss} / \text{totalCapitalOutlay}) \times 100\%$.
+  * Khi `netProfitLoss == 0`: Hiển thị trung tính `0.0%`, tuyệt đối không tính âm toàn bộ vốn đang lưu động ngoài thị trường.
+- **Khắc Phục Vốn Chưa Thu Hồi & Vốn Lưu Động Bị Phình To Ảo**:
+  * Cơ chế Fallback thông minh trong `toFinancialDeal()` cho dữ liệu lịch sử chưa có trường `writtenOffCapital`: Tự động nhận diện và gán `writtenOffCapital = -netProfitLoss` khi `netProfitLoss < 0`.
+  * Đảm bảo deal "Lướt sóng nhỏ/lẻ" và các deal cũ hiển thị đúng số vốn chưa thu hồi thực tế (3.855.900đ - 1.355.900đ - 2.000.000đ = 500.000đ).
+  * Đồng bộ "Vốn Đang Lưu Động" trên Hero Card = Tổng `remainingCapital` của các deal đang `ACTIVE`.
+- **Đóng Băng Vòng Đời Khi Deal Đã Chốt Sổ (Strict State Machine)**:
+  * Ẩn/khóa toàn bộ nút "Xuất Thêm Vốn", "Thu Hồi / Lời", "Chốt Lỗ & Đóng" khi Deal đã `COMPLETED`.
+  * Chặn cấp Repository/UseCase không cho phép ghi đè giao dịch mới làm deal tự động chuyển ngược từ `COMPLETED` về `ACTIVE`.
+
+### Fixed
+- Khắc phục lỗi ROI bị âm nặng (-95.2%, -85.4%) do tính gộp vốn đang lưu động thành khoản lỗ.
+- Khắc phục lỗi ô "Vốn chưa thu hồi" và "Vốn đang lưu động" không trừ số tiền đã chốt lỗ trên các deal lịch sử.
+- Đạt 100% (282/282) Unit Tests PASS.
+
+## [1.20.2] - 2026-09-03
+### Added
+- **Bổ sung trường `writtenOffCapital: Money` vào Data Model `FinancialDeal` & Firestore DTOs**:
+  * Theo dõi độc lập số vốn gốc đã chốt lỗ / xóa nợ (nợ xấu không thu hồi được).
+  * Hỗ trợ đồng bộ đa nền tảng (Firestore Transaction & Demo Repository).
+- **Bộ Unit Test Kiểm Thử Kịch Bản Vay Đa Đợt & Xóa Nợ (`DealUseCasesTest`)**:
+  * Kiểm thử kịch bản: Cho vay 150k $\rightarrow$ Xóa nợ 150k $\rightarrow$ Cho vay thêm 200k $\rightarrow$ Xóa nợ 200k.
+  * Đảm bảo tính toán khớp 100%: `writtenOffCapital == 350k`, `netProfitLoss == -350k`, `remainingCapital == 0k`.
+
+### Changed
+- **Chuẩn Hóa Công Thức Toán Học Dư Nợ & Chốt Lỗ**:
+  * `remainingCapital = max(0, totalCapitalOutlay - totalRecovered - writtenOffCapital)`.
+  * `lossAmount = max(0, totalCapitalOutlay - totalRecovered - currentWrittenOff)`.
+  * Cập nhật cả `revertDealLoss` tự động hoàn lại số vốn đã xóa sổ khi khôi phục Deal.
+- **Tinh Chỉnh Giao Diện Thẻ Khoản Vay (`DealDetailBottomSheet.kt`)**:
+  * Tách bạch hiển thị: Nếu `netProfitLoss < 0` hiển thị nhãn `Mất vốn / Xóa nợ` với màu cảnh báo `error`.
+  * Hiển thị trạng thái nợ `Đã xóa nợ` khi khoản vay đã hoàn tất đóng sổ có xóa nợ.
+  * Ràng buộc nút bấm: Khi Deal ở trạng thái `COMPLETED`, ẩn các nút "Cho Vay Thêm" / "Thu Nợ / Lãi" và thay bằng banner thông báo "Khoản vay đã đóng sổ".
+
+### Fixed
+- Khắc phục triệt để lỗi tính lỗ kép (ví dụ bị trừ thành -500.000đ thay vì -350.000đ khi chốt lỗ nhiều đợt).
+- Khắc phục lỗi ô "Dư nợ gốc còn lại" không về 0đ sau khi đã xóa nợ / chốt lỗ toàn bộ khoản vay.
+- Đạt 100% (279/279) Unit Tests PASS.
+
 ## [1.20.1] - 2026-08-31
 ### Added
 - **Chuẩn Hóa & Mapping Toàn Diện Ngân Sách Vào Báo Cáo Chuyên Sâu (`DeepDiveSubTab.BUDGETS`)**:

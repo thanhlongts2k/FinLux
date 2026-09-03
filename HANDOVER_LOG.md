@@ -1,8 +1,94 @@
 # HANDOVER LOG - FINLUX APP
 
 ## Trạng Thái Dự Án (Project Status)
-- **Phiên bản hiện tại:** v1.20.1 (versionCode 163) [DONE]
-- **Trạng thái Build:** ✅ 100% PASS (278/278 Unit Tests) — Chuẩn hóa & mapping toàn diện Ngân sách vào Báo cáo Chuyên sâu hoàn tất.
+- **Phiên bản hiện tại:** v1.20.3 (versionCode 165) [DONE]
+- **Trạng thái Build:** ✅ 100% PASS (282/282 Unit Tests) — Chuẩn hóa ROI, khắc phục vốn lưu động & vốn chưa thu hồi, đóng băng vòng đời COMPLETED và thêm nút Tất Toán & Đóng Deal; Nạp APK thành công lên điện thoại qua ADB.
+
+---
+
+## [DONE] Task: Chuẩn Hóa Logic Toán Học, Vốn Lưu Động & Vòng Đời Thương Vụ (Deal Tracking)
+
+**Ngày:** 2026-09-03
+
+### Mục tiêu
+1. **Sửa công thức ROI (tránh âm vô lý -95%)**:
+   - Chuẩn hóa: `ROI (%) = (netProfitLoss / totalCapitalOutlay) * 100%`.
+   - Khi `netProfitLoss == 0`: Hiển thị `0.0%`, không coi vốn đang lưu động ngoài thị trường là khoản lỗ.
+   - Cập nhật cả `roiPercentage` trong `DealModels.kt`, `overallRoiPercentage` trong `DealsUiState.kt` và UI hiển thị trên Hero Card / DealCard / Detail Sheet.
+2. **Khắc phục Vốn chưa thu hồi & Vốn lưu động bị phình to ảo**:
+   - Fallback thông minh trong `toFinancialDeal()` cho dữ liệu cũ: nếu `writtenOffCapital == 0` mà `netProfitLoss < 0`, tự động gán `writtenOffCapital = -netProfitLoss`.
+   - Đảm bảo deal "Lướt sóng nhỏ/lẻ" (3.855.900đ - 1.355.900đ - 2.000.000đ) hiển thị chính xác còn lại `500.000đ`.
+   - Đồng bộ "Vốn Đang Lưu Động" trên Hero Card = tổng `remainingCapital` của các deal đang `ACTIVE`.
+3. **Đóng băng vòng đời khi deal đã COMPLETED (Strict State Machine)**:
+   - Khóa và ẩn hoàn toàn các nút "Xuất Thêm Vốn", "Thu Hồi / Lời", "Chốt Lỗ & Đóng" khi Deal đã `COMPLETED`.
+   - Chặn trong UseCases / Repository không cho phép ghi nhận giao dịch mới làm deal tự động chuyển ngược từ `COMPLETED` về `ACTIVE`.
+4. **Bổ sung nút "Tất toán & Đóng Deal" (Close Deal)**:
+   - Thêm `CloseDealUseCase` và method `closeDeal(dealId)` trong `DealRepository`.
+   - Bổ sung nút "Tất toán & Đóng Deal" (kèm dialog xác nhận) khi thương vụ đã thu hồi xong hoặc muốn đóng sổ thành công.
+5. **Kiểm thử & Build**:
+   - Cập nhật và bổ sung Unit Tests trong `DealUseCasesTest.kt`.
+   - Kiểm thử 100% PASS, bump version `v1.20.3` (versionCode 165), build APK và nạp lên điện thoại qua ADB.
+
+### Danh sách file đã chỉnh sửa
+1. `app/src/main/java/com/finlux/app/domain/model/DealModels.kt` (công thức ROI chuẩn theo netProfitLoss)
+2. `app/src/main/java/com/finlux/app/domain/repository/DealRepository.kt` (method `closeDeal`)
+3. `app/src/main/java/com/finlux/app/domain/usecase/DealUseCases.kt` (`CloseDealUseCase` & guard chặn COMPLETED trong các UseCase)
+4. `app/src/main/java/com/finlux/app/data/remote/firebase/FirebaseDealRepository.kt` (triển khai `closeDeal`, guard COMPLETED, và fallback `writtenOffCapital`)
+5. `app/src/main/java/com/finlux/app/data/demo/DemoFinluxRepository.kt` (triển khai `closeDeal` và guard COMPLETED)
+6. `app/src/main/java/com/finlux/app/presentation/deal/DealsUiState.kt` (chuẩn hóa `overallRoiPercentage`)
+7. `app/src/main/java/com/finlux/app/presentation/deal/DealsViewModel.kt` (inject `CloseDealUseCase` và hàm `closeDeal`)
+8. `app/src/main/java/com/finlux/app/presentation/deal/DealsScreen.kt` (truyền `onCloseDeal`, format ROI trung tính 0.0%)
+9. `app/src/main/java/com/finlux/app/presentation/deal/DealDetailBottomSheet.kt` (nút Tất Toán & Đóng, dialog xác nhận, khóa nút khi COMPLETED)
+10. `app/src/test/java/com/finlux/app/domain/usecase/DealUseCasesTest.kt` (bổ sung test case closeDeal, strict state machine, ROI chuẩn)
+11. `app/build.gradle.kts` (bump version lên v1.20.3, versionCode 165)
+12. `CHANGELOG.md`
+13. `HANDOVER_LOG.md`
+
+### Kết quả kiểm thử
+- ✅ `gradlew testDebugUnitTest`: **100% PASS (282/282 tests, 0 failure)**.
+- ✅ `gradlew assembleDebug`: **BUILD SUCCESSFUL in 21s**.
+- ✅ `adb install -r app-debug.apk`: **Success (Streamed Install trên thiết bị thật qua ADB)**.
+
+### Trạng thái
+`[DONE]`
+
+---
+
+## [DONE] Task: Sửa Triệt Để Logic Dòng Tiền & Dư Nợ Khoản Vay (Deal & Lending)
+
+**Ngày:** 2026-09-03
+
+### Mục tiêu
+- Sửa lỗi toán học tính lỗ kép (-500.000đ thay vì -350.000đ) khi chốt lỗ nhiều lần hoặc cho vay thêm sau khi đã xóa nợ.
+- Sửa lỗi `Dư nợ gốc còn lại` (`remainingCapital`) không về 0đ sau khi chốt lỗ / xóa nợ toàn bộ.
+- Bổ sung trường `writtenOffCapital: Money` vào `FinancialDeal` và Firestore DTOs để theo dõi số vốn đã xóa sổ/chốt lỗ.
+- Chuẩn hóa công thức:
+  + `remainingCapital = max(0, totalCapitalOutlay - totalRecovered - writtenOffCapital)`.
+  + `lossAmount = max(0, totalCapitalOutlay - totalRecovered - currentWrittenOff)`.
+- Cập nhật cả `FirebaseDealRepository`, `DemoFinluxRepository`, và `FakeDealRepository` (bao gồm cả `revertDealLoss` và `recordDealInflow`).
+- Tinh chỉnh UI `DealDetailBottomSheet.kt`:
+  + Tách bạch hiển thị "Tiền lãi nhận được" (nếu âm đổi thành "Mất vốn / Xóa nợ" màu cảnh báo).
+  + Trạng thái nợ đổi thành "Đã xóa nợ" khi deal đã chốt đóng sổ kèm xóa nợ.
+  + Ẩn các nút "Cho Vay Thêm" / "Thu Nợ / Lãi" khi Deal đã `COMPLETED`, thay bằng banner thông báo "Khoản vay đã đóng sổ".
+- Bổ sung Unit Test cho kịch bản nhiều đợt vay và xóa nợ trong `DealUseCasesTest.kt`.
+
+### Danh sách file đã chỉnh sửa
+1. `app/src/main/java/com/finlux/app/domain/model/DealModels.kt` (thêm `writtenOffCapital` & cập nhật `remainingCapital`)
+2. `app/src/main/java/com/finlux/app/data/remote/firebase/FirebaseDealRepository.kt` (xử lý `writtenOffCapital` trong `upsertDeal`, `recordDealInflow`, `closeDealWithLoss`, `revertDealLoss`, `toFinancialDeal`)
+3. `app/src/main/java/com/finlux/app/data/demo/DemoFinluxRepository.kt` (xử lý `writtenOffCapital` trong `recordDealInflow`, `closeDealWithLoss`, `revertDealLoss`)
+4. `app/src/main/java/com/finlux/app/presentation/deal/DealDetailBottomSheet.kt` (giao diện dư nợ, tiền lãi/mất vốn, trạng thái nợ, và banner đóng sổ)
+5. `app/src/test/java/com/finlux/app/domain/usecase/DealUseCasesTest.kt` (cập nhật Fake repo và thêm test case kịch bản vay 150k -> xóa nợ 150k -> vay thêm 200k -> xóa nợ 200k)
+6. `app/build.gradle.kts` (bump version lên v1.20.2, versionCode 164)
+7. `CHANGELOG.md`
+8. `HANDOVER_LOG.md`
+
+### Kết quả kiểm thử
+- ✅ `gradlew testDebugUnitTest`: **100% PASS (279/279 tests, 0 failure)**.
+- ✅ `gradlew assembleDebug`: **BUILD SUCCESSFUL in 34s**.
+- ✅ `adb install -r app-debug.apk`: **Success (Streamed Install trên thiết bị thật qua ADB)**.
+
+### Trạng thái
+`[DONE]`
 
 ---
 

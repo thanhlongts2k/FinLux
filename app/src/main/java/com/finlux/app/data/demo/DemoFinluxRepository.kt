@@ -813,6 +813,9 @@ class DemoFinluxRepository @Inject constructor(
         date: Instant,
         note: String,
     ): AppResult<Unit> = mutationMutex.withLock {
+        if (deal.status == DealStatus.COMPLETED) {
+            return@withLock AppResult.Error("Thương vụ đã hoàn tất đóng sổ, không thể xuất thêm vốn")
+        }
         if (!changeWalletBalance(walletId, -amount)) return@withLock AppResult.Error("Ví không tồn tại hoặc lỗi số dư")
 
         val updatedDeal = deal.copy(
@@ -844,18 +847,22 @@ class DemoFinluxRepository @Inject constructor(
         date: Instant,
         note: String,
     ): AppResult<Unit> = mutationMutex.withLock {
+        if (deal.status == DealStatus.COMPLETED) {
+            return@withLock AppResult.Error("Thương vụ đã hoàn tất đóng sổ, không thể thu hồi thêm")
+        }
         if (!changeWalletBalance(walletId, amount)) return@withLock AppResult.Error("Ví không tồn tại")
 
         val totalOutlay = deal.totalCapitalOutlay.value
         val totalRecovered = deal.totalRecovered.value
         val currentProfit = deal.netProfitLoss.value
-        val remainingCapital = (totalOutlay - totalRecovered).coerceAtLeast(0L)
+        val currentWrittenOff = deal.writtenOffCapital.value
+        val remainingCapital = (totalOutlay - totalRecovered - currentWrittenOff).coerceAtLeast(0L)
 
         val newTransactions = mutableListOf<FinanceTransaction>()
 
         if (amount <= remainingCapital) {
             val newRecovered = totalRecovered + amount
-            val newStatus = if (newRecovered >= totalOutlay && totalOutlay > 0) DealStatus.COMPLETED else DealStatus.ACTIVE
+            val newStatus = if (newRecovered + currentWrittenOff >= totalOutlay && totalOutlay > 0) DealStatus.COMPLETED else DealStatus.ACTIVE
             val updatedDeal = deal.copy(
                 totalRecovered = Money(newRecovered),
                 status = newStatus,
@@ -881,7 +888,7 @@ class DemoFinluxRepository @Inject constructor(
             val gainPortion = amount - remainingCapital
 
             val updatedDeal = deal.copy(
-                totalRecovered = Money(totalOutlay),
+                totalRecovered = Money(totalRecovered + principalPortion),
                 netProfitLoss = Money(currentProfit + gainPortion),
                 status = DealStatus.COMPLETED,
                 updatedAt = Instant.now()
@@ -926,12 +933,17 @@ class DemoFinluxRepository @Inject constructor(
         date: Instant,
         note: String,
     ): AppResult<Unit> = mutationMutex.withLock {
+        if (deal.status == DealStatus.COMPLETED) {
+            return@withLock AppResult.Error("Thương vụ đã hoàn tất đóng sổ")
+        }
         val totalOutlay = deal.totalCapitalOutlay.value
         val totalRecovered = deal.totalRecovered.value
         val currentProfit = deal.netProfitLoss.value
-        val lossAmount = (totalOutlay - totalRecovered).coerceAtLeast(0L)
+        val currentWrittenOff = deal.writtenOffCapital.value
+        val lossAmount = (totalOutlay - totalRecovered - currentWrittenOff).coerceAtLeast(0L)
 
         val updatedDeal = deal.copy(
+            writtenOffCapital = Money(currentWrittenOff + lossAmount),
             netProfitLoss = Money(currentProfit - lossAmount),
             status = DealStatus.COMPLETED,
             endDate = date,
@@ -963,7 +975,9 @@ class DemoFinluxRepository @Inject constructor(
         transactionState.value = transactionState.value.filterNot { it.dealId == dealId && it.dealFlowType == DealFlowType.CAPITAL_LOSS }
         dealState.value = dealState.value.map { d ->
             if (d.id == dealId) {
+                val newWrittenOff = (d.writtenOffCapital.value - totalLoss).coerceAtLeast(0L)
                 d.copy(
+                    writtenOffCapital = Money(newWrittenOff),
                     netProfitLoss = Money(d.netProfitLoss.value + totalLoss),
                     status = DealStatus.ACTIVE,
                     endDate = null,
@@ -980,6 +994,19 @@ class DemoFinluxRepository @Inject constructor(
                 d.copy(
                     status = DealStatus.ACTIVE,
                     endDate = null,
+                    updatedAt = Instant.now(),
+                )
+            } else d
+        }
+        AppResult.Success(Unit)
+    }
+
+    override suspend fun closeDeal(dealId: String, date: Instant): AppResult<Unit> = mutationMutex.withLock {
+        dealState.value = dealState.value.map { d ->
+            if (d.id == dealId) {
+                d.copy(
+                    status = DealStatus.COMPLETED,
+                    endDate = date,
                     updatedAt = Instant.now(),
                 )
             } else d
