@@ -89,6 +89,7 @@ import com.finlux.app.core.designsystem.colorFromHex
 import com.finlux.app.core.designsystem.findInstitutionForWallet
 import com.finlux.app.core.designsystem.component.formatVndAmount
 import com.finlux.app.core.designsystem.theme.LocalFinluxTokens
+import com.finlux.app.core.time.FinanceTime
 import com.finlux.app.domain.model.Category
 import com.finlux.app.domain.model.Wallet
 import com.finlux.app.domain.validation.WalletValidationResult
@@ -107,7 +108,7 @@ import java.time.format.DateTimeFormatter
  */
 fun formatSmartDateTime(
     instant: Instant,
-    zoneId: ZoneId = ZoneId.systemDefault(),
+    zoneId: ZoneId = FinanceTime.defaultZone,
 ): String {
     val localDateTime = instant.atZone(zoneId)
     val localDate = localDateTime.toLocalDate()
@@ -123,7 +124,7 @@ fun formatSmartDateTime(
 
 /**
  * Standard Finlux Date & Time Picker Control.
- * Integrated 2-in-1 DatePicker + TimePicker (24-hour mode).
+ * Integrated with FinluxDateTimePickerSheet (Liquid Glass BottomSheet).
  * Adheres 100% to Directive #1 (Dynamic Tokens) and Directive #2 (Reusability).
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -137,13 +138,14 @@ fun FinluxDateTimePicker(
     iconBgColor: Color = Color(0xFF6366F1).copy(alpha = 0.14f),
     iconTintColor: Color = Color(0xFF6366F1),
     enabled: Boolean = true,
+    allowFutureDates: Boolean = false,
+    zoneId: ZoneId = FinanceTime.defaultZone,
 ) {
     val tokens = LocalFinluxTokens.current
-    val context = LocalContext.current
-    var showDatePickerDialog by remember { mutableStateOf(false) }
+    var showDateTimePickerSheet by remember { mutableStateOf(false) }
 
-    val formattedText = remember(selectedDateTime) {
-        formatSmartDateTime(selectedDateTime)
+    val formattedText = remember(selectedDateTime, zoneId) {
+        formatSmartDateTime(selectedDateTime, zoneId)
     }
 
     // Row Clickable Form Card
@@ -159,7 +161,7 @@ fun FinluxDateTimePicker(
                 enabled = enabled,
                 interactionSource = remember { MutableInteractionSource() },
                 indication = ripple(bounded = true),
-                onClick = { showDatePickerDialog = true },
+                onClick = { showDateTimePickerSheet = true },
             ),
     ) {
         Row(
@@ -214,58 +216,15 @@ fun FinluxDateTimePicker(
         }
     }
 
-    // Two-step DatePicker -> TimePicker Dialogs
-    if (showDatePickerDialog) {
-        val currentZoned = remember(selectedDateTime) { selectedDateTime.atZone(ZoneId.systemDefault()) }
-        val initialUtcMillis = remember(currentZoned) {
-            currentZoned.toLocalDate().atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
-        }
-        val datePickerState = rememberDatePickerState(
-            initialSelectedDateMillis = initialUtcMillis,
+    if (showDateTimePickerSheet) {
+        FinluxDateTimePickerSheet(
+            selectedDateTime = selectedDateTime,
+            onDateTimeSelected = onDateTimeChange,
+            onDismiss = { showDateTimePickerSheet = false },
+            title = label,
+            allowFutureDates = allowFutureDates,
+            zoneId = zoneId,
         )
-
-        DatePickerDialog(
-            onDismissRequest = { showDatePickerDialog = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    val selectedMillis = datePickerState.selectedDateMillis
-                    showDatePickerDialog = false
-                    if (selectedMillis != null) {
-                        val selectedLocalDate = Instant.ofEpochMilli(selectedMillis)
-                            .atZone(ZoneOffset.UTC)
-                            .toLocalDate()
-
-                        val timePickerDialog = TimePickerDialog(
-                            context,
-                            { _, hourOfDay, minute ->
-                                val newDateTime = selectedLocalDate.atTime(hourOfDay, minute)
-                                val newInstant = newDateTime.atZone(ZoneId.systemDefault()).toInstant()
-                                onDateTimeChange(newInstant)
-                            },
-                            currentZoned.hour,
-                            currentZoned.minute,
-                            true, // 24-hour format
-                        )
-                        timePickerDialog.setOnCancelListener {
-                            // Preserve selected date with existing time on dialog dismiss
-                            val newDateTime = selectedLocalDate.atTime(currentZoned.hour, currentZoned.minute)
-                            val newInstant = newDateTime.atZone(ZoneId.systemDefault()).toInstant()
-                            onDateTimeChange(newInstant)
-                        }
-                        timePickerDialog.show()
-                    }
-                }) {
-                    Text("Tiếp tục (Chọn giờ)", color = tokens.primary, fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDatePickerDialog = false }) {
-                    Text("Hủy", color = tokens.onSurfaceVariant)
-                }
-            },
-        ) {
-            DatePicker(state = datePickerState)
-        }
     }
 }
 

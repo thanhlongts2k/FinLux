@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.25.16] - 2026-09-24
+### Added
+- **Xây Dựng FinluxDateTimePickerSheet & Chốt Chặn Giao Dịch Tương Lai (Double Protection)**:
+  * Xây dựng mới `FinluxDateTimePickerSheet.kt` theo chuẩn Liquid Glass: All-in-one Sheet tích hợp Chọn ngày & Chọn giờ trong cùng 1 màn hình duy nhất.
+  * Tích hợp dải Quick Chips chọn nhanh ngày: `[ Hôm nay ]`, `[ Hôm qua ]`, `[ 2 ngày trước ]`.
+  * Lịch tháng Liquid Glass tự dựng 7 cột (T2 - CN), kích thước ô 36dp, khoảng cách hàng 4dp, chống tràn giao diện (Zero Overflow).
+  * Bộ chọn giờ & phút dạng thanh ngang nhỏ gọn (Compact Number Stepper) với Quick Chips giờ: `[ Bây giờ ]`, `[ 08:00 ]`, `[ 12:00 ]`, `[ 19:00 ]`.
+  * **Chặn tương lai toàn diện (UI & Domain):**
+    - Vô hiệu hóa ngày tương lai (`alpha = 0.25f`, `enabled = false`).
+    - Chặn giờ tương lai trong ngày hôm nay (Intra-day validation): Giờ/phút vượt quá thời điểm hiện tại tự động clamp về giờ hiện tại; các chips giờ tương lai bị disable.
+    - Chốt chặn Domain trong `TransactionValidation.kt` và `TransferMoneyUseCase.kt` với hằng số `TRANSACTION_CLOCK_SKEW_TOLERANCE_SECONDS = 60L` từ `FinanceBusinessConstants`.
+  * Hỗ trợ ngoại lệ mục tiêu tài chính: `allowFutureDates = true` cho `GoalsScreen.kt`.
+  * Bổ sung 4 Boundary Unit Tests vào `TransactionUseCasesTest.kt` nâng tổng số test lên 525 tests (100% PASS).
+
+### Changed
+- Cập nhật `versionCode = 190` và `versionName = "1.25.16"` trong `app/build.gradle.kts`.
+- Đồng bộ tài liệu `docs/plan_custom_datetime_picker_sheet.md` và `HANDOVER_LOG.md`.
+
 ## [1.25.15] - 2026-09-22
 ### Added
 - **Sáp Nhập Toàn Diện Màn Hình Chủ HomeScreen Master (Phase 3 - Batch 3.5: Master Adaptive Home Architecture)**:

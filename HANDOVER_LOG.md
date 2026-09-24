@@ -1,8 +1,8 @@
 # HANDOVER LOG - FINLUX APP
 
 ## Trạng Thái Dự Án (Project Status)
-- **Phiên bản hiện tại:** v1.25.15 (versionCode 189)
-- **Trạng thái Build:** ✅ 100% PASS (521/521 unit tests)
+- **Phiên bản hiện tại:** v1.25.16 (versionCode 190)
+- **Trạng thái Build:** ✅ 100% PASS (525/525 unit tests)
 
 ## 📋 Quy Chuẩn Vận Hành Tech Lead & Checklist Nghiệm Thu (SOP Mandate)
 ### 1. Quy Trình Khởi Động Task 4 Bước (4-Step Kickoff Protocol)
@@ -16,6 +16,35 @@
 - [x] **Large Number check:** Tiền từ trăm triệu đến chục tỷ tự co font, không tràn viền, không che inline `₫`.
 - [x] **Keyboard IME check:** Bàn phím số không che khuất ô nhập liệu và nút hành động.
 - [x] **Full Flow check:** 1 luồng giao dịch thực tế hoàn chỉnh, số dư và ngân sách/sổ cái cập nhật chuẩn xác.
+
+### [Task-FINLUX-DATETIME-PICKER-SHEET] — Triển Khai FinluxDateTimePickerSheet & Chốt Chặn Giao Dịch Tương Lai
+- **Status**: `[DONE]`
+- **Scope**:
+  1. Cập nhật `docs/plan_custom_datetime_picker_sheet.md` theo 5 đặc tả kỹ thuật được Tech Lead phê duyệt.
+  2. Tạo mới `FinluxDateTimePickerSheet.kt` theo chuẩn Liquid Glass (All-in-one Sheet, Quick Chips, Calendar Grid, Time Stepper ngang chống tràn, Zero Overflow, đồng bộ `FinanceTime.defaultZone`).
+  3. Nâng cấp `FinluxDateTimePicker` trong `FinluxFormControls.kt` (gọi Sheet mới, mặc định `allowFutureDates = false`), cập nhật `GoalsScreen.kt` (`allowFutureDates = true`).
+  4. Cập nhật tầng Domain: `FinanceBusinessConstants.kt`, `TransactionValidation.kt`, `TransferMoneyUseCase.kt` với hằng số dung sai `TRANSACTION_CLOCK_SKEW_TOLERANCE_SECONDS = 60L`.
+  5. Bổ sung ma trận test biên (Boundary Test Cases) vào `TransactionUseCasesTest.kt`.
+  6. Kiểm thử `compileDebugKotlin` và `testDebugUnitTest` (đạt 100% pass, số lượng test tăng lên 525/525 tests).
+  7. Đóng gói APK `assembleDebug` và nạp chạy thành công trên thiết bị vật lý qua ADB.
+  8. Tăng version lên v1.25.16 (code 190), cập nhật CHANGELOG.md, commit và push git theo lệnh.
+- **Files đã sửa/tạo thực tế**:
+  - `docs/plan_custom_datetime_picker_sheet.md` (Cập nhật kế hoạch & đặc tả đã duyệt)
+  - `app/src/main/java/com/finlux/app/core/designsystem/component/form/FinluxDateTimePickerSheet.kt` (Tạo mới)
+  - `app/src/main/java/com/finlux/app/core/designsystem/component/form/FinluxFormControls.kt` (Nâng cấp FinluxDateTimePicker & formatSmartDateTime)
+  - `app/src/main/java/com/finlux/app/presentation/goal/GoalsScreen.kt` (Cấu hình allowFutureDates = true)
+  - `app/src/main/java/com/finlux/app/domain/model/FinanceBusinessConstants.kt` (Thêm TRANSACTION_CLOCK_SKEW_TOLERANCE_SECONDS = 60L)
+  - `app/src/main/java/com/finlux/app/domain/usecase/TransactionValidation.kt` (Chặn ngày tương lai với tolerance)
+  - `app/src/main/java/com/finlux/app/domain/usecase/TransferMoneyUseCase.kt` (Chặn ngày chuyển tiền tương lai với tolerance)
+  - `app/src/test/java/com/finlux/app/domain/usecase/TransactionUseCasesTest.kt` (Bổ sung 4 boundary test cases)
+  - `app/build.gradle.kts` (versionCode 190, versionName 1.25.16)
+  - `CHANGELOG.md`
+  - `HANDOVER_LOG.md`
+- **Verification Results**:
+  - `compileDebugKotlin`: **Exit code 0** (BUILD SUCCESSFUL).
+  - `testDebugUnitTest`: **525/525 unit tests PASS 100%** (BUILD SUCCESSFUL).
+  - `assembleDebug`: **BUILD SUCCESSFUL**.
+  - `adb install & start`: Cài đặt thành công `Success` và kích hoạt `com.finlux.app/.MainActivity` trên thiết bị.
 
 ### [Task-PHASE-3-BATCH-3.5] — Sáp Nhập Cụm 5: HomeScreen Master (Adaptive Architecture)
 - **Status**: `[DONE]`

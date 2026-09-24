@@ -531,6 +531,7 @@ fun GoalEditor(onDismiss: () -> Unit, viewModel: GoalsViewModel = hiltViewModel(
                         selectedDateTime = state.deadline,
                         onDateTimeChange = { viewModel.setDeadline(it) },
                         label = "Hạn hoàn thành",
+                        allowFutureDates = true,
                     )
                 }
                 item { Text("Danh mục", fontWeight = FontWeight.Bold) }
