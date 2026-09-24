@@ -221,3 +221,19 @@ if (date.isAfter(nowWithTolerance)) {
 - **Bước 6:** Chạy lệnh kiểm thử `.\gradlew.bat compileDebugKotlin` và `.\gradlew.bat testDebugUnitTest` (Bắt buộc 100% test pass, tổng số test tăng lên vượt mốc 521).
 - **Bước 7:** Miễn trừ đóng gói APK (không chạy assembleDebug) và không gọi bất kỳ lệnh ADB nào.
 - **Bước 8:** Tăng version trong `app/build.gradle.kts` lên `v1.25.16 (versionCode 190)`, cập nhật `CHANGELOG.md`, `HANDOVER_LOG.md`, sau đó chạy `git add`, `git commit` và `git push` lên remote.
+
+---
+
+## 5. NÂNG CẤP PHASE 2: MODULAR PICKER SUITE & BÁNH XE CUỘN CUPERTINO iOS (ĐÃ HOÀN TẤT)
+
+### 5.1. Mục tiêu nâng cấp
+- Thay thế hoàn toàn nút stepper `+`/`-` bằng bánh xe cuộn mượt mà phong cách iOS (`FinluxWheelPicker`) sử dụng `LazyColumn` + `rememberSnapFlingBehavior`.
+- Tách thành 3 Component Sheets độc lập:
+  1. `FinluxDateTimePickerSheet`: Chọn cả Ngày & Giờ (AddTransaction, Transfer, Deals).
+  2. `FinluxTimePickerSheet`: Chuyên chọn Giờ:Phút (SavingSpin, Reminders).
+  3. `FinluxDatePickerSheet`: Chuyên chọn Ngày (Goals, Reminders).
+- Mở rộng dải Quick Date Chips (`LazyRow`) và Quick Time Chips (`LazyRow`) tự động cuộn bánh xe về đúng số.
+- Thêm `accentColor` thích ứng ngữ cảnh: Chi tiêu (`ExpenseRed`), Thu nhập (`IncomeGreen`), Nhắc nhở (`WarningAmber`), Mặc định (`tokens.primary`).
+- Quét sạch toàn bộ Zombie Code (`DatePickerDialog`, `rememberDatePickerState`, `android.app.TimePickerDialog`).
+- Đạt 100% Quality Gate: Compile sạch, 525/525 tests PASS, đóng gói v1.25.17 (191) và nạp thiết bị thật.
+

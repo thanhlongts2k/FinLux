@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.25.17] - 2026-09-24
+### Added
+- **Module Hóa Bộ Chọn Thời Gian Tiêu Chuẩn & Nâng Cấp Bảng Màu Thích Ứng (Modular Time Suite & Contextual Accent)**:
+  * Quy hoạch 3 Component Sheets độc lập từ Core `FinluxWheelPicker`:
+    1. `FinluxWheelPicker` (Atomic Core): Public Composable bánh xe cuộn Cupertino iOS hít tâm mượt mà, scale/alpha động, hỗ trợ nảy ngược khi vượt ngưỡng và nhận `accentColor`.
+    2. `FinluxDateTimePickerSheet`: Chọn cả Ngày & Giờ (AddTransaction, TransferMoney, RecordDeals).
+    3. `FinluxTimePickerSheet`: Chuyên chọn Giờ:Phút với Quick Time Chips + 2 bánh xe [Giờ] : [Phút] phong cách iOS + Nút Xác nhận.
+    4. `FinluxDatePickerSheet`: Chuyên chọn Ngày với Quick Date Chips + Lưới lịch Liquid Glass + Nút Xác nhận.
+  * Mở rộng dải Quick Date Chips (`LazyRow`): `[ Hôm nay ]`, `[ Hôm qua ]`, `[ 2 ngày trước ]`, `[ 3 ngày trước ]`, `[ Đầu tháng ]` (kèm mốc tương lai khi `allowFutureDates = true`).
+  * Mở rộng dải Quick Time Chips (`LazyRow`): `[ Bây giờ ]`, `[ Sáng 07:30 ]`, `[ Trưa 12:00 ]`, `[ Chiều 14:30 ]`, `[ Tối 19:30 ]`, `[ Đêm 22:00 ]`, tự động trượt bánh xe về đúng số.
+  * Bảng màu thích ứng (`accentColor`): Chi tiêu dùng `FinluxColors.ExpenseRed`, Thu nhập dùng `FinluxColors.IncomeGreen`, Nhắc nhở dùng `FinluxColors.WarningAmber`, Chuyển ví / Mặc định dùng `tokens.primary`.
+  * Đồng bộ màn hình:
+    - `SavingSpinSettingsScreen.kt`: Thay thế hoàn toàn cụm nút stepper `+`/`-` bằng `FinluxTimePickerSheet`.
+    - `RemindersScreen.kt`: Thay thế `android.app.TimePickerDialog` bằng `FinluxTimePickerSheet` và `DatePickerDialog` M3 bằng `FinluxDatePickerSheet`.
+    - `AddTransactionSheet.kt`: Truyền `accentColor = amountColor` (ExpenseRed / IncomeGreen).
+  * Quét sạch Zombie Code: Xóa toàn bộ import rác `DatePickerDialog`, `rememberDatePickerState`, `android.app.TimePickerDialog` tại `AddTransactionSheet.kt`, `TransferMoneyScreen.kt`, `GoalsScreen.kt`, `RemindersScreen.kt` và `FinluxFormControls.kt`.
+  * Đặc tả chuẩn hóa vào `docs/FORM_COMPONENTS_SPEC.md` (Mục 9️⃣) và cập nhật `docs/plan_custom_datetime_picker_sheet.md`.
+
+### Changed
+- Cập nhật `versionCode = 191` và `versionName = "1.25.17"` trong `app/build.gradle.kts`.
+- Bảo toàn 525/525 unit tests PASS 100%, nạp APK thành công lên thiết bị vật lý.
+
 ## [1.25.16] - 2026-09-24
 ### Added
 - **Xây Dựng FinluxDateTimePickerSheet & Chốt Chặn Giao Dịch Tương Lai (Double Protection)**:
