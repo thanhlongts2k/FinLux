@@ -1,20 +1,27 @@
 package com.finlux.app.core.designsystem.component.form
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -37,29 +44,33 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.finlux.app.core.designsystem.theme.LocalFinluxTokens
 import com.finlux.app.core.time.FinanceTime
-import java.time.DayOfWeek
+import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.YearMonth
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 /**
@@ -70,8 +81,9 @@ import java.util.Locale
  * 2. Intra-day & Future Clamping: If allowFutureDates == false, future dates are disabled,
  *    and for today, hours/minutes exceeding the current time are disabled & auto-clamped.
  * 3. Quick Chips: "Hôm nay", "Hôm qua", "2 ngày trước" + Quick Time Chips ("Bây giờ", "08:00", "12:00", "19:00").
- * 4. Zero Overflow: Day cells 36dp with 4dp row spacing, compact horizontal time stepper,
- *    wrapped in verticalScroll to prevent screen clipping.
+ * 4. Zero Overflow: Day cells 36dp with 4dp row spacing, wrapped in verticalScroll.
+ * 5. Cupertino Drum / Wheel Picker: Smooth snap fling behavior with 3 visible items,
+ *    centered highlight frame, and auto-bounceback when swiping beyond future limits.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -395,7 +407,7 @@ fun FinluxDateTimePickerSheet(
                 }
             }
 
-            // Time Selector Card (Compact Horizontal Layout, Zero Overflow)
+            // Time Selector Card (Cupertino Drum / Wheel Layout, Zero Overflow)
             Surface(
                 shape = RoundedCornerShape(18.dp),
                 color = tokens.surfaceSoft,
@@ -484,51 +496,87 @@ fun FinluxDateTimePickerSheet(
                         }
                     }
 
-                    // Compact Stepper for Hour and Minute
+                    // Cupertino Wheel Picker: Hour & Minute
+                    val maxHour = if (!allowFutureDates && selectedLocalDate == today) LocalTime.now(zoneId).hour else 23
+                    val maxMinute = if (!allowFutureDates && selectedLocalDate == today && selectedHour == LocalTime.now(zoneId).hour) {
+                        LocalTime.now(zoneId).minute
+                    } else 59
+
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        // Hour Stepper
-                        CompactNumberStepper(
-                            value = selectedHour,
-                            maxValue = if (!allowFutureDates && selectedLocalDate == today) LocalTime.now(zoneId).hour else 23,
-                            minValue = 0,
-                            onValueChange = { newHour ->
-                                val (h, m) = clampTimeIfNeeded(selectedLocalDate, newHour, selectedMinute)
-                                selectedHour = h
-                                selectedMinute = m
-                            },
-                            label = "Giờ",
-                        )
+                        // Hour Column
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Text(
+                                text = "Giờ",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                ),
+                                color = tokens.onSurfaceVariant,
+                                modifier = Modifier.padding(bottom = 4.dp),
+                            )
+                            FinluxWheelPicker(
+                                items = (0..23).toList(),
+                                selectedValue = selectedHour,
+                                maxValue = maxHour,
+                                onValueChange = { h ->
+                                    selectedHour = h
+                                    val newMaxMin = if (!allowFutureDates && selectedLocalDate == today && h == LocalTime.now(zoneId).hour) {
+                                        LocalTime.now(zoneId).minute
+                                    } else 59
+                                    if (selectedMinute > newMaxMin) {
+                                        selectedMinute = newMaxMin
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
 
+                        // Colon Separator
                         Text(
                             text = ":",
                             style = MaterialTheme.typography.titleLarge.copy(
-                                fontSize = 24.sp,
+                                fontSize = 22.sp,
                                 fontWeight = FontWeight.Bold,
                             ),
                             color = tokens.onSurface,
-                            modifier = Modifier.padding(horizontal = 14.dp),
+                            modifier = Modifier
+                                .padding(horizontal = 8.dp)
+                                .padding(top = 18.dp),
                         )
 
-                        // Minute Stepper
-                        val maxMinute = if (!allowFutureDates && selectedLocalDate == today && selectedHour == LocalTime.now(zoneId).hour) {
-                            LocalTime.now(zoneId).minute
-                        } else 59
-
-                        CompactNumberStepper(
-                            value = selectedMinute,
-                            maxValue = maxMinute,
-                            minValue = 0,
-                            onValueChange = { newMinute ->
-                                val (h, m) = clampTimeIfNeeded(selectedLocalDate, selectedHour, newMinute)
-                                selectedHour = h
-                                selectedMinute = m
-                            },
-                            label = "Phút",
-                        )
+                        // Minute Column
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Text(
+                                text = "Phút",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                ),
+                                color = tokens.onSurfaceVariant,
+                                modifier = Modifier.padding(bottom = 4.dp),
+                            )
+                            FinluxWheelPicker(
+                                items = (0..59).toList(),
+                                selectedValue = selectedMinute,
+                                maxValue = maxMinute,
+                                onValueChange = { m ->
+                                    selectedMinute = m
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
                     }
                 }
             }
@@ -568,98 +616,155 @@ fun FinluxDateTimePickerSheet(
 }
 
 /**
- * Compact horizontal number stepper for Hour / Minute selection.
- * Prevents screen overflow compared to full Material 3 dial clocks.
+ * FinluxWheelPicker - Smooth Cupertino / iOS Style Drum Wheel Picker in Jetpack Compose.
+ *
+ * Uses LazyColumn + rememberSnapFlingBehavior to achieve exact snap-to-center physics.
+ * Displays 3 visible items with dynamic scaling (0.82f) and alpha fading (0.38f) around the center.
+ * Features automatic bounce-back when swiping beyond future limits.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun CompactNumberStepper(
-    value: Int,
-    minValue: Int,
-    maxValue: Int,
+fun FinluxWheelPicker(
+    items: List<Int>,
+    selectedValue: Int,
     onValueChange: (Int) -> Unit,
-    label: String,
     modifier: Modifier = Modifier,
+    maxValue: Int = items.lastOrNull() ?: 0,
+    minValue: Int = items.firstOrNull() ?: 0,
+    formatLabel: (Int) -> String = { "%02d".format(Locale.US, it) },
 ) {
     val tokens = LocalFinluxTokens.current
+    val itemHeight = 38.dp
+    val density = LocalDensity.current
+    val itemHeightPx = with(density) { itemHeight.toPx() }
 
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-        modifier = modifier,
+    val initialIndex = remember {
+        items.indexOf(selectedValue).coerceAtLeast(0)
+    }
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = initialIndex)
+    val snapFlingBehavior = rememberSnapFlingBehavior(lazyListState = listState)
+    val coroutineScope = rememberCoroutineScope()
+
+    // Centered item index computation based on scroll offset
+    val centeredIndex by remember {
+        derivedStateOf {
+            val firstIndex = listState.firstVisibleItemIndex
+            val firstOffset = listState.firstVisibleItemScrollOffset
+            val offsetRatio = firstOffset / itemHeightPx
+            if (offsetRatio > 0.5f) {
+                (firstIndex + 1).coerceAtMost(items.lastIndex)
+            } else {
+                firstIndex.coerceAtMost(items.lastIndex)
+            }
+        }
+    }
+
+    // Sync external selectedValue changes (e.g. from quick chips) into listState
+    LaunchedEffect(selectedValue) {
+        val targetIdx = items.indexOf(selectedValue)
+        if (targetIdx >= 0 && targetIdx != centeredIndex && !listState.isScrollInProgress) {
+            listState.animateScrollToItem(targetIdx)
+        }
+    }
+
+    // When scrolling stops, notify value change and auto-snap back if past limits
+    LaunchedEffect(listState.isScrollInProgress) {
+        if (!listState.isScrollInProgress) {
+            val targetIdx = centeredIndex.coerceIn(0, items.lastIndex)
+            val currentVal = items[targetIdx]
+            if (currentVal > maxValue) {
+                val maxIdx = items.indexOf(maxValue).coerceAtLeast(0)
+                listState.animateScrollToItem(maxIdx)
+                onValueChange(maxValue)
+            } else if (currentVal < minValue) {
+                val minIdx = items.indexOf(minValue).coerceAtLeast(0)
+                listState.animateScrollToItem(minIdx)
+                onValueChange(minValue)
+            } else {
+                onValueChange(currentVal)
+            }
+        }
+    }
+
+    Box(
+        modifier = modifier
+            .height(itemHeight * 3) // Exactly 3 visible items
+            .fillMaxWidth(),
+        contentAlignment = Alignment.Center,
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        // Highlight indicator for the center item (Liquid Glass frame)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(0.92f)
+                .height(itemHeight)
+                .background(
+                    color = tokens.primary.copy(alpha = 0.10f),
+                    shape = RoundedCornerShape(10.dp),
+                )
+                .border(
+                    BorderStroke(1.dp, tokens.primary.copy(alpha = 0.30f)),
+                    shape = RoundedCornerShape(10.dp),
+                ),
+        )
+
+        LazyColumn(
+            state = listState,
+            flingBehavior = snapFlingBehavior,
+            contentPadding = PaddingValues(vertical = itemHeight),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.fillMaxSize(),
         ) {
-            // Decrement Button
-            Surface(
-                shape = CircleShape,
-                color = tokens.surface,
-                border = BorderStroke(1.dp, tokens.border),
-                modifier = Modifier
-                    .size(34.dp)
-                    .clip(CircleShape)
-                    .clickable(
-                        enabled = value > minValue,
-                        onClick = { onValueChange((value - 1).coerceAtLeast(minValue)) },
-                    ),
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(
-                        text = "–",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        color = if (value > minValue) tokens.onSurface else tokens.onSurfaceVariant.copy(alpha = 0.3f),
-                    )
-                }
-            }
+            itemsIndexed(items) { index, itemValue ->
+                val distance = kotlin.math.abs(index - centeredIndex)
+                val isPastLimit = itemValue > maxValue || itemValue < minValue
 
-            // Value Display Box
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = tokens.surface,
-                border = BorderStroke(1.dp, tokens.border),
-                modifier = Modifier
-                    .size(width = 54.dp, height = 40.dp),
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(
-                        text = "%02d".format(Locale.US, value),
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
+                val scale = when (distance) {
+                    0 -> 1f
+                    1 -> 0.82f
+                    else -> 0.68f
+                }
+                val alpha = when {
+                    isPastLimit -> 0.22f
+                    distance == 0 -> 1f
+                    distance == 1 -> 0.38f
+                    else -> 0.15f
+                }
+                val color = when {
+                    isPastLimit -> tokens.onSurfaceVariant.copy(alpha = 0.3f)
+                    distance == 0 -> tokens.primary
+                    else -> tokens.onSurface
+                }
+                val fontWeight = if (distance == 0) FontWeight.Bold else FontWeight.Medium
+                val fontSize = if (distance == 0) 21.sp else 16.sp
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(itemHeight)
+                        .clickable(
+                            enabled = !isPastLimit,
+                            onClick = {
+                                coroutineScope.launch {
+                                    listState.animateScrollToItem(index)
+                                }
+                            },
                         ),
-                        color = tokens.primary,
-                    )
-                }
-            }
-
-            // Increment Button
-            Surface(
-                shape = CircleShape,
-                color = tokens.surface,
-                border = BorderStroke(1.dp, tokens.border),
-                modifier = Modifier
-                    .size(34.dp)
-                    .clip(CircleShape)
-                    .clickable(
-                        enabled = value < maxValue,
-                        onClick = { onValueChange((value + 1).coerceAtMost(maxValue)) },
-                    ),
-            ) {
-                Box(contentAlignment = Alignment.Center) {
+                    contentAlignment = Alignment.Center,
+                ) {
                     Text(
-                        text = "+",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        color = if (value < maxValue) tokens.onSurface else tokens.onSurfaceVariant.copy(alpha = 0.3f),
+                        text = formatLabel(itemValue),
+                        fontSize = fontSize,
+                        fontWeight = fontWeight,
+                        color = color,
+                        modifier = Modifier
+                            .graphicsLayer {
+                                scaleX = scale
+                                scaleY = scale
+                                this.alpha = alpha
+                            },
                     )
                 }
             }
         }
-
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-            color = tokens.onSurfaceVariant,
-        )
     }
 }

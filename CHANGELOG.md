@@ -6,7 +6,7 @@
   * Xây dựng mới `FinluxDateTimePickerSheet.kt` theo chuẩn Liquid Glass: All-in-one Sheet tích hợp Chọn ngày & Chọn giờ trong cùng 1 màn hình duy nhất.
   * Tích hợp dải Quick Chips chọn nhanh ngày: `[ Hôm nay ]`, `[ Hôm qua ]`, `[ 2 ngày trước ]`.
   * Lịch tháng Liquid Glass tự dựng 7 cột (T2 - CN), kích thước ô 36dp, khoảng cách hàng 4dp, chống tràn giao diện (Zero Overflow).
-  * Bộ chọn giờ & phút dạng thanh ngang nhỏ gọn (Compact Number Stepper) với Quick Chips giờ: `[ Bây giờ ]`, `[ 08:00 ]`, `[ 12:00 ]`, `[ 19:00 ]`.
+  * Bộ chọn giờ & phút phong cách iOS (Cupertino Drum / Wheel Picker `FinluxWheelPicker`): LazyColumn 2 cột hít tâm mượt mà (`rememberSnapFlingBehavior`), hiển thị 3 dòng số, scale và làm mờ động, tự động snap bật ngược khi cuộn quá mốc thời gian tương lai, đồng bộ mượt mà với Quick Chips.
   * **Chặn tương lai toàn diện (UI & Domain):**
     - Vô hiệu hóa ngày tương lai (`alpha = 0.25f`, `enabled = false`).
     - Chặn giờ tương lai trong ngày hôm nay (Intra-day validation): Giờ/phút vượt quá thời điểm hiện tại tự động clamp về giờ hiện tại; các chips giờ tương lai bị disable.

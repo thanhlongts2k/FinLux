@@ -28,6 +28,7 @@
   6. Kiểm thử `compileDebugKotlin` và `testDebugUnitTest` (đạt 100% pass, số lượng test tăng lên 525/525 tests).
   7. Đóng gói APK `assembleDebug` và nạp chạy thành công trên thiết bị vật lý qua ADB.
   8. Tăng version lên v1.25.16 (code 190), cập nhật CHANGELOG.md, commit và push git theo lệnh.
+  9. [UPGRADE] Nâng cấp bộ chọn giờ sang Cupertino Drum / Wheel Picker (`FinluxWheelPicker`) sử dụng LazyColumn + `rememberSnapFlingBehavior`, tự động hít tâm, hiệu ứng scale/alpha động và tự động snap bật ngược khi cuộn quá mốc thời gian tương lai.
 - **Files đã sửa/tạo thực tế**:
   - `docs/plan_custom_datetime_picker_sheet.md` (Cập nhật kế hoạch & đặc tả đã duyệt)
   - `app/src/main/java/com/finlux/app/core/designsystem/component/form/FinluxDateTimePickerSheet.kt` (Tạo mới)
